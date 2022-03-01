@@ -19,7 +19,7 @@ const configApp = {
     profile: {
         href : "/profile",
         text: "Profile",
-        //openMethod: 
+        openMethod: start_page,
     },
     signOut: {
         href: "/sign_out",
@@ -28,60 +28,97 @@ const configApp = {
     },
 }
 
+function ajax(method, url, body = null, callback) {
+	const xhr = new XMLHttpRequest();
+	xhr.open(method, url, true);
+	xhr.withCredentials = true;
+
+	xhr.addEventListener('readystatechange', function() {
+		if (xhr.readyState !== XMLHttpRequest.DONE) return;
+
+		callback(xhr.status, xhr.responseText);
+	});
+
+	if (body) {
+		xhr.setRequestHeader('Content-type', 'application/json; charset=utf8');
+		xhr.send(JSON.stringify(body));
+		return;
+	}
+
+	xhr.send();
+}
+
 function checkCorrect(e) {
     var target = e.target;
     var value = target.value;
-
-    if (this.type == 'password') {
-        var count = 0;
-        var lowerCaseLetters = /[a-z]/g;
-        if(value.match(lowerCaseLetters)) {  
-            count++;
-        }
-        
-        // Validate capital letters
-        var upperCaseLetters = /[A-Z]/g;
-        if(value.match(upperCaseLetters)) {  
-            count++;
-        }
-
-        // Validate numbers
-        var numbers = /[0-9]/g;
-        if(value.match(numbers)) {  
-            count++;
-        }
-        
-        // Validate length
-        if(value.length >= 8) {
-            count++;
-        }
-        if (count == 4) {
-            target.classList.remove('denied');
-            target.classList.add('accepted');
-        } else {
-            target.classList.remove('accepted');
-            target.classList.add('denied');
-        }
-    } else if (this.type == 'email') {
-        if (/^([a-z0-9_-]+\.)*[a-z0-9_-]+@[a-z0-9_-]+(\.[a-z0-9_-]+)*\.[a-z]{2,6}$/.test(value)) {
-            target.classList.remove('denied');
-            target.classList.add('accepted');
-        } else {
-            target.classList.remove('accepted');
-            target.classList.add('denied');
-        }
+    if (!this.classList.contains('req')) {
+        return;
+    }
+    console.log(this.type)
+    switch (this.type) {
+        case 'password':
+            var count = 0;
+            var lowerCaseLetters = /[a-z]/g;
+            if(value.match(lowerCaseLetters)) {  
+                count++;
+            }
+            // Validate capital letters
+            var upperCaseLetters = /[A-Z]/g;
+            if(value.match(upperCaseLetters)) {  
+                count++;
+            }
+            // Validate numbers
+            var numbers = /[0-9]/g;
+            if(value.match(numbers)) {  
+                count++;
+            }
+            // Validate length
+            if(value.length >= 8) {
+                count++;
+            }
+            if (count == 4) {
+                target.classList.remove('denied');
+                target.classList.add('accepted');
+            } else {
+                target.classList.remove('accepted');
+                target.classList.add('denied');
+            }
+            break;
+        case 'email':
+            if (/^([a-z0-9_-]+\.)*[a-z0-9_-]+@[a-z0-9_-]+(\.[a-z0-9_-]+)*\.[a-z]{2,6}$/.test(value)) {
+                target.classList.remove('denied');
+                target.classList.add('accepted');
+            } else {
+                target.classList.remove('accepted');
+                target.classList.add('denied');
+            }
+            break;
+        case 'text':
+            var lowerCaseLetters = /[a-zA-Z0-9_]+/g;
+            if(value.match(upperCaseLetters)) {  
+                target.classList.remove('denied');
+                target.classList.add('accepted');
+            } else {
+                target.classList.remove('accepted');
+                target.classList.add('denied');
+            }
+            break;
     }
     if (value == '') {
         target.classList.remove('denied');
     }
 }
 
-function createInput(type, placeholder, value, className, section) {
+function createInput(type, placeholder, value, className, section, required=false) {
     const input = document.createElement('input');
     input.type = type;
     input.placeholder = placeholder;
     input.value = value;
     input.className = className;
+    if (required) {
+        input.classList.add('req')
+        console.log(input.classList)
+    }
     input.dataset.section = section;
     input.addEventListener('keyup', checkCorrect);
     return input;
@@ -120,7 +157,6 @@ function createBtn(textContent, href, section) {
     back.className = 'btnStyle';
     return back
 }
-
 function start_page() {
     root.innerHTML = "";
     Object.
@@ -152,10 +188,8 @@ function sign_in() {
 
     const emailInput = createInput('email', 'email', '', 'form', '');
     const div1 = createDiv('login/email', emailInput, '');
-
     const passwordInput = createInput('password', 'password', '', 'form', '');
     const div2 = createDiv('password', passwordInput, '');
-
 	const submitBtn = createInput('submit', '', 'enter', 'btn', '');
 	const back = createBtn('back', 'back', 'startPage');
 
@@ -174,20 +208,20 @@ function sign_in() {
 		const email = emailInput.value.trim();
 		const password = passwordInput.value;
         alert(`You entered email: ${email}\nYou entered password: ${password}`)
-		// ajax(
-		// 	'POST',
-		// 	'/login',
-		// 	{email, password},
-		// 	(status => {
-		// 		if (status === 200) {
-		// 			profilePage();
-		// 			return;
-		// 		}
+		ajax(
+			'POST',
+			'/sign_in',
+			{email, password},
+			(status => {
+				if (status === 200) {
+					profilePage();
+					return;
+				}
 
-		// 		alert('АХТУНГ! НЕТ АВТОРИЗАЦИИ');
-		// 		signupPage();
-		// 	})
-		// )
+				alert('АХТУНГ! НЕТ АВТОРИЗАЦИИ');
+				signupPage();
+			})
+		)
 	});
 
 	root.appendChild(form);
@@ -198,17 +232,45 @@ function signupPage() {
 
 	const form = document.createElement('form');
 
-    const emailInput = createInput('email', 'email', '', 'form', '');
+    const emailInput = createInput('email', 'email', '', 'form', '', true);
     const div1 = createDiv('login/email', emailInput, '');
-    const passwordInput = createInput('password', 'password', '', 'form', '');
+    const passwordInput = createInput('password', 'password', '', 'form', '', true);
     const div2 = createDiv('password', passwordInput, '');
     const ageInput = createInput('number', 'age', '', '', '');
     const div3 = createDiv('age', ageInput, '');
 
-	const submitBtn = createInput('submit', '', 'registration', 'btn', '');
-	const back = createBtn('back', 'back', 'startPage')
+    const nameInput = createInput('text', 'name', '', 'form', '', true);
+    const div4 = createDiv('name', nameInput, '');
+    const lastnameInput = createInput('text', 'lastname', '', 'form', '', true);
+    const div5 = createDiv('lastname', lastnameInput, '');
+    const surnameInput = createInput('text', 'surname', '', 'form', '');
+    const div6 = createDiv('surname', surnameInput, '');
 
-    const div = fillDiv('form', div1, div2, div3, submitBtn, back);
+	const submitBtn = createInput('submit', '', 'registration', 'btn', '');
+    submitBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+		const email = emailInput.value.trim();
+		const password = passwordInput.value;
+        const age = ageInput.value;
+        alert(`You entered email: ${email}\nYou entered password: ${password}\nYou entered age: ${age}`)
+        ajax(
+			'POST',
+			'sign_up',
+			{email, password, age},
+			(status => {
+				if (status === 200) {
+					start_page();
+					return;
+				}
+
+				alert('ERROR');
+				// signupPage();
+			})
+		)
+    })
+	const back = createBtn('back', 'back', 'startPage');
+
+    const div = fillDiv('form', div1, div2, div3, div4, div5, div6, submitBtn, back);
 
 	form.appendChild(div);
 	root.appendChild(form);
@@ -229,55 +291,3 @@ root.addEventListener('click', (e) => {
 	}
 
 });
-
-// function createInputText(type, placeholder) {
-//     const inputText = document.createElement('input');
-//     inputText.type = type;
-//     inputText.placeholder = placeholder;
-//     return inputText;
-// }
-
-// function createInputButton(type, value, className) {
-//     const inputButton = document.createElement('input');
-//     inputButton.type = type;
-//     inputButton.value = value;
-//     inputButton.className = className;
-//     return inputButton;
-// }
-
-
-// function createField1() {
-//     const div = document.createElement('div');
-//     div.innerHTML = "login: ";
-//     div.appendChild(createInput('text', 'Enter login', '', 'reqField'));
-//     div.appendChild(createInput('submit','', 'Press me', 'btn'));
-//     return div;
-// }
-
-// function createField2() {
-//     const div = document.createElement('div');
-//     div.appendChild(createInputText('text', 'Enter login'));
-//     div.appendChild(createInputButton('submit', 'Press me', 'btn'));
-//     return div;
-// }
-
-// function createForm(params) {}
-
-// const input = document.createElement('input')
-// input.type = 'text'
-// input.placeholder = 'Some text'
-
-// root.appendChild(input)
-
-// const button = document.createElement('input')
-// button.className = 'btn'
-// button.type = 'submit'
-// button.value = 'Press me!'
-
-// root.appendChild(button)
-
-// const div1 = createField1()
-// root.appendChild(div1)
-
-// const div2 = createField2()
-// root.appendChild(div2)
